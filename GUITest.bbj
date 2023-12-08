@@ -1,0 +1,27 @@
+use ::AuthKit/profile/MicrosoftAccountProfile.bbj::MicrosoftAccountProfile
+
+? 'HIDE'
+sysgui! = BBjAPI().openSysGui("X0")
+wnd! = sysgui!.addWindow(300,300,300,20,"Please log in in the browser...")
+wnd!.setCallback(BBjAPI.ON_CLOSE,"byebye")
+
+rem put a variable in global namespace to receive back the token
+k$="mslog_"+str(dec(info(3,1)))
+ns! = BBjAPI().getGlobalNamespace()
+ns!.setValue(k$, "")
+ns!.setCallbackForVariableChange(k$, "login")
+
+BBjAPI().getThinClient().browse("https://localtest.carit.cloud:8443/webapp/msloginauto?sid="+k$)
+
+process_events
+
+
+login:
+    rem revalidate token for security reasons
+    token$=ns!.getValue(k$)
+    ns!.removeValue(k$)
+    Profile! = new MicrosoftAccountProfile(token$)
+    wnd!.focus()
+    a=msgbox(Profile!.getFullName()+" ("+Profile!.getEMail()+")",0,"Login Successful")
+    wnd!.destroy()
+release

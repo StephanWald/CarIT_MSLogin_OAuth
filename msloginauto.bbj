@@ -1,0 +1,42 @@
+use ::AuthKit/profile/MicrosoftAccountProfile.bbj::MicrosoftAccountProfile
+use ::AuthKit/widgets/MicrosoftLoginWidget.bbj::MicrosoftLoginWidget
+
+sysgui! = BBjAPI().openSysGui("X0")
+
+wnd! = sysgui!.addWindow(0,0,800,600,"Log in using your Microsoft Account", $01101000$)
+wnd!.setCallback(BBjAPI.ON_CLOSE,"byebye")
+wnd!.setPanelStyle("display", "inline-grid")
+
+MicrosoftLoginWidget.setCLIENTID("308db3b0-22b5-4393-9496-089d58b7bed6")
+MicrosoftLoginWidget.setAUTHORITY("https://login.microsoftonline.com/common")
+MicrosoftLoginWidget.setREDIRECTURI("https://localtest.carit.cloud:8443/xxx")
+
+MicrosoftLoginWidget.setAUTOLOGIN(1)
+
+MicrosoftLoginWidget! = new MicrosoftLoginWidget(wnd!,wnd!.getAvailableControlID())
+MicrosoftLoginWidget!.setStyle("width","120px")
+MicrosoftLoginWidget!.setStyle("height","30px")
+
+MicrosoftLoginWidget!.setCallback(MicrosoftLoginWidget.ON_LOGIN,"onMicrosoftLogin")
+
+MicrosoftInfo! = wnd!.addStaticText(wnd!.getAvailableControlID(),280,205,300,30,"")
+
+process_events
+
+byebye:
+    release
+
+onMicrosoftLogin:
+    ev! = BBjAPI().getLastEvent()
+    MicrosoftProfile! = ev!.getObject()
+    MicrosoftInfo!.setText(MicrosoftProfile!.getFullName()+ " ("+MicrosoftProfile!.getEMail()+")")
+    
+    sid$=CLIENTENV("sid",err=nosid)
+    BBjAPI().getGlobalNamespace().setValue(sid$, MicrosoftProfile!.getToken())
+    BBjAPI().getSysGui().executeScript("window.close();")
+return
+
+nosid:
+    a=msgbox("Missing session parameter! Closing now.",0,"Error")
+    BBjAPI().getSysGui().executeScript("window.close();")
+    release
