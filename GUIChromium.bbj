@@ -1,0 +1,70 @@
+use ::AuthKit/profile/MicrosoftAccountProfile.bbj::MicrosoftAccountProfile
+
+userhome! = System@.getProperty("user.home")
+if userhome!<>null() then
+  rem you will want to set a fixed home directory for chromium's cookie data in the user's home:
+  chromium_user_dir$ = userhome! + "/chromium-user-data-carit"
+  chromium_switches$ = "--user-data-dir="+chromium_user_dir$
+  
+  rem enable remote debugging:
+  rem chromium_switches$ = chromium_switches$+" --remote-debugging-port=9222"
+  
+  dummy$=stbl("!CHROMIUM_SWITCHES",chromium_switches$)
+endif
+
+sysgui! = BBjAPI().openSysGui("X0")
+wnd! = sysgui!.addWindow(600,500,440,640,"Microsoft Log-In...")
+wnd!.setCallback(BBjAPI.ON_CLOSE,"byebye")
+
+htmlview! = wnd!.addHtmlView(102,0,0,440,640,"",$$)
+
+htmlview!.setCallback(BBjAPI.ON_NATIVE_JAVASCRIPT,"onJS")
+
+clientId$="d3a18781-9fec-4182-bac6-9485d9d121ce"
+redirectUri$ ="https://localtest.carit.cloud:8443/files/ms-login.html"
+
+gosub createHtmlStubs
+
+htmlview!.setUrl(redirectUri$)
+
+process_events
+
+
+byebye:
+    release
+
+createHtmlStubs:
+  bbjHomePath! = System.getProperty("basis.BBjHome")
+  bbjHome! = new java.io.File(bbjHomePath!)
+  if(!bbjHome!.exists()) then
+      a=msgbox("Could not find BBj Home")
+      release
+  endif
+
+  ch=unt 
+
+  open (ch)"GUIChromium.html"
+  read record (ch,siz=dec(fin(ch)(1,4)))html$
+  close (ch)
+
+  html$=html$(1,pos("$$CLIENTID$$"=html$)-1)+clientId$+html$(pos("$$CLIENTID$$"=html$)+12)
+  html$=html$(1,pos("$$REDIRECTURL$$"=html$)-1)+redirectUri$+html$(pos("$$REDIRECTURL$$"=html$)+15)
+
+  open (ch,MODE="O_CREATE,O_TRUNC")str(bbjHomePath!)+"/htdocs/ms-login.html"
+  write (ch)html$
+  close (ch)
+
+return
+
+
+onJS:
+  wnd!.destroy()
+  ev! = BBjAPI().getLastEvent()
+  map! = ev!.getEventMap()
+  token$ = map!.get("token")
+  Profile! = new MicrosoftAccountProfile(token$)
+
+  rem show logged user:
+  a=msgbox(Profile!.getFullName()+" ("+Profile!.getEMail()+")",0,"Login Successful")
+  
+  release
